@@ -143,6 +143,16 @@ resource "aws_lambda_permission" "function_url_public" {
   function_url_auth_type  = "NONE"
 }
 
+# AWS now requires BOTH lambda:InvokeFunctionUrl (above) AND lambda:InvokeFunction
+# (this one) for a function URL to actually work — granting only the first
+# still results in a 403 Forbidden on every invocation.
+resource "aws_lambda_permission" "function_invoke_public" {
+  statement_id  = "FunctionURLInvokeAllowPublicAccess"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.app.function_name
+  principal     = "*"
+}
+
 output "api_url" {
   value = aws_lambda_function_url.app_url.function_url
 }
