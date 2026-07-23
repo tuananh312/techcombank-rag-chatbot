@@ -18,6 +18,8 @@ provider "aws" {
   region = var.aws_region
 }
 
+data "aws_caller_identity" "current" {}
+
 variable "aws_region" {
   default = "us-east-1"
 }
@@ -38,6 +40,29 @@ resource "aws_ecr_repository" "app" {
   name                 = var.project_name
   image_tag_mutability = "MUTABLE"
   force_delete         = true
+}
+
+# Required for Lambda to be able to PULL the image at all — without this,
+# CreateFunction fails with AccessDeniedException even though the image
+# exists in the account, since ECR repos are private by default and the
+# Lambda service principal needs to be explicitly granted pull access.
+resource "aws_ecr_repository_policy" "app" {
+  repository = aws_ecr_repository.app.name
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Sid       = "LambdaECRImageRetrievalPolicy"
+      Effect    = "Allow"
+      Principal = { Service = "lambda.amazonaws.com" }
+      Action    = ["ecr:BatchGetImage", "ecr:GetDownloadUrlForLayer"]
+      Condition = {
+        StringEquals = {
+          "aws:SourceAccount" = data.aws_caller_identity.current.account_id
+        }
+      }
+    }]
+  })
 }
 
 # ---------------------------------------------------------------------------
@@ -85,6 +110,8 @@ resource "aws_lambda_function" "app" {
   image_uri     = "${aws_ecr_repository.app.repository_url}:${var.image_tag}"
   timeout       = 60
   memory_size   = 2048
+
+  depends_on = [aws_ecr_repository_policy.app]
 
   environment {
     variables = {
