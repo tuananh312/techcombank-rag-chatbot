@@ -131,6 +131,18 @@ resource "aws_lambda_function_url" "app_url" {
   authorization_type = "NONE" # demo only — see README for tightening this
 }
 
+# authorization_type = "NONE" alone is NOT sufficient for public invocation —
+# Lambda Function URLs also require an explicit resource-based permission
+# granting lambda:InvokeFunctionUrl, or every call gets rejected with a
+# generic "Forbidden" before it even reaches the function code.
+resource "aws_lambda_permission" "function_url_public" {
+  statement_id            = "FunctionURLAllowPublicAccess"
+  action                  = "lambda:InvokeFunctionUrl"
+  function_name           = aws_lambda_function.app.function_name
+  principal                = "*"
+  function_url_auth_type  = "NONE"
+}
+
 output "api_url" {
   value = aws_lambda_function_url.app_url.function_url
 }
