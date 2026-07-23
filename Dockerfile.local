@@ -1,0 +1,31 @@
+# syntax=docker/dockerfile:1
+# Used for `docker-compose up` local demos. The production image (Dockerfile)
+# targets AWS Lambda's container runtime instead — see README for why there
+# are two Dockerfiles.
+FROM python:3.12-slim
+
+WORKDIR /app
+COPY app/requirements.txt .
+
+# Install CPU-only torch explicitly first (much smaller than the default
+# wheel, which can pull in CUDA support nobody needs here). sentence-transformers
+# will then see torch is already satisfied and skip reinstalling it.
+# --mount=type=cache persists pip's download cache OUTSIDE the image layers,
+# so even a full --no-cache rebuild doesn't redownload wheels from the internet.
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --retries 5 --timeout 120 --index-url https://download.pytorch.org/whl/cpu torch
+
+RUN --mount=type=cache,target=/root/.cache/pip \
+    pip install --retries 5 --timeout 120 -r requirements.txt
+
+# Pre-download the embedding model at build time so it's baked into the
+# image — avoids a ~80MB download on the first chat request after every
+# fresh `podman-compose up`.
+ENV SENTENCE_TRANSFORMERS_HOME=/model_cache
+RUN python -c "from sentence_transformers import SentenceTransformer; SentenceTransformer('all-MiniLM-L6-v2')"
+ENV HF_HUB_OFFLINE=1
+
+COPY app/ .
+
+EXPOSE 8000
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]

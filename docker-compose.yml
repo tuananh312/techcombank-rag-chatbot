@@ -1,0 +1,37 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    ports:
+      - "8000:8000"
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - EMBED_MODEL_NAME=${EMBED_MODEL_NAME:-all-MiniLM-L6-v2}
+      - GEN_MODEL_ID=${GEN_MODEL_ID:-anthropic.claude-3-sonnet-20240229-v1:0}
+      - GENERATION_PROVIDER=${GENERATION_PROVIDER:-bedrock}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY}
+      - ANTHROPIC_MODEL=${ANTHROPIC_MODEL:-claude-sonnet-5}
+    volumes:
+      - ./app/data:/app/data   # so the index built by `ingest` is visible to `api` without rebuilding the image
+
+  # One-off container: builds the FAISS index from the source PDF.
+  # Run with: docker compose run --rm ingest --source "<PDF URL>"
+  # Writes app/data/index.faiss + app/data/chunks.json onto the HOST via the
+  # bind mount below, so they persist and get committed to the repo.
+  ingest:
+    build:
+      context: .
+      dockerfile: Dockerfile.local
+    entrypoint: ["python", "ingest.py"]
+    environment:
+      - AWS_REGION=${AWS_REGION:-us-east-1}
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_SESSION_TOKEN=${AWS_SESSION_TOKEN}
+      - EMBED_MODEL_NAME=${EMBED_MODEL_NAME:-all-MiniLM-L6-v2}
+    volumes:
+      - ./app/data:/app/data

@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<title>Techcombank FY Report Chatbot</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 40px auto; background: #f7f7f8; }
+  #chat { background: white; border-radius: 8px; padding: 16px; height: 480px; overflow-y: auto; border: 1px solid #ddd; }
+  .msg { margin: 8px 0; padding: 10px 14px; border-radius: 14px; max-width: 80%; line-height: 1.4; }
+  .user { background: #2563eb; color: white; margin-left: auto; }
+  .bot { background: #eee; color: #111; margin-right: auto; }
+  .sources { font-size: 12px; color: #666; margin-top: 6px; margin-right: auto; max-width: 80%; }
+  .sources summary { cursor: pointer; }
+  .source-item { margin-top: 4px; padding: 6px 8px; background: #f9f9f9; border-left: 3px solid #2563eb; white-space: pre-wrap; }
+  .source-item.table { font-family: monospace; font-size: 11px; border-left-color: #16a34a; }
+  .source-label { font-weight: 600; }
+  #inputRow { display: flex; gap: 8px; margin-top: 12px; }
+  #question { flex: 1; padding: 10px; border-radius: 8px; border: 1px solid #ccc; }
+  button { padding: 10px 16px; border: none; border-radius: 8px; background: #2563eb; color: white; cursor: pointer; }
+  #apiUrl { width: 100%; margin-bottom: 12px; padding: 6px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <h2>Techcombank FY Report Chatbot</h2>
+  <input id="apiUrl" placeholder="API base URL, e.g. http://localhost:8000" value="http://localhost:8000" />
+  <div id="chat"></div>
+  <div id="inputRow">
+    <input id="question" placeholder="Ask about Techcombank's FY performance..." />
+    <button onclick="send()">Send</button>
+  </div>
+
+<script>
+let sessionId = null;
+
+function addMessage(text, cls, sources) {
+  const chat = document.getElementById('chat');
+  const div = document.createElement('div');
+  div.className = 'msg ' + cls;
+  div.textContent = text;
+  chat.appendChild(div);
+
+  if (sources && sources.length > 0) {
+    const details = document.createElement('details');
+    details.className = 'sources';
+    const summary = document.createElement('summary');
+    summary.textContent = `Sources (${sources.length} page${sources.length > 1 ? 's' : ''})`;
+    details.appendChild(summary);
+    sources.forEach(s => {
+      const item = document.createElement('div');
+      item.className = 'source-item' + (s.kind === 'table' ? ' table' : '');
+      const label = document.createElement('div');
+      label.className = 'source-label';
+      label.textContent = `Page ${s.page}${s.kind === 'table' ? ' (table)' : ''}`;
+      const body = document.createElement('div');
+      body.textContent = s.snippet;
+      item.appendChild(label);
+      item.appendChild(body);
+      details.appendChild(item);
+    });
+    chat.appendChild(details);
+  }
+
+  chat.scrollTop = chat.scrollHeight;
+}
+
+async function send() {
+  const input = document.getElementById('question');
+  const question = input.value.trim();
+  if (!question) return;
+  addMessage(question, 'user');
+  input.value = '';
+
+  const apiBase = document.getElementById('apiUrl').value.replace(/\/$/, '');
+
+  try {
+    const resp = await fetch(apiBase + '/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: question, session_id: sessionId })
+    });
+    const data = await resp.json();
+    sessionId = data.session_id;
+    addMessage(data.answer, 'bot', data.sources);
+  } catch (err) {
+    addMessage('Error contacting API: ' + err, 'bot');
+  }
+}
+
+document.getElementById('question').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') send();
+});
+</script>
+</body>
+</html>

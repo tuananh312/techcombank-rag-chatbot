@@ -1,0 +1,29 @@
+{
+  "version": "2.0",
+  "routeKey": "$default",
+  "rawPath": "/chat",
+  "rawQueryString": "",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "requestContext": {
+    "accountId": "anonymous",
+    "apiId": "test-api-id",
+    "domainName": "test-api-id.lambda-url.us-east-1.on.aws",
+    "domainPrefix": "test-api-id",
+    "http": {
+      "method": "POST",
+      "path": "/chat",
+      "protocol": "HTTP/1.1",
+      "sourceIp": "127.0.0.1",
+      "userAgent": "curl/8.0.1"
+    },
+    "requestId": "test-request-id",
+    "routeKey": "$default",
+    "stage": "$default",
+    "time": "23/Jul/2026:00:00:00 +0000",
+    "timeEpoch": 1753228800000
+  },
+  "body": "{\"message\": \"What was net profit for the fiscal year?\"}",
+  "isBase64Encoded": false
+}
