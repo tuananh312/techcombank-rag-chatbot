@@ -88,10 +88,13 @@ resource "aws_lambda_function" "app" {
 
   environment {
     variables = {
-      AWS_REGION         = var.aws_region
-      EMBED_MODEL_NAME   = "all-MiniLM-L6-v2"
+      # NOTE: AWS_REGION is NOT set here — it's a reserved Lambda env var
+      # name that AWS sets automatically; attempting to set it manually
+      # causes CreateFunction to fail. rag.py's os.environ.get("AWS_REGION", ...)
+      # picks up Lambda's automatically-provided value with no extra config.
+      EMBED_MODEL_NAME    = "all-MiniLM-L6-v2"
       GENERATION_PROVIDER = "bedrock"
-      GEN_MODEL_ID       = "global.anthropic.claude-sonnet-4-6"
+      GEN_MODEL_ID        = "global.anthropic.claude-sonnet-4-6"
     }
   }
 }
