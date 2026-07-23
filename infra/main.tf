@@ -7,12 +7,11 @@ terraform {
     }
   }
 
-  # Simplest possible remote state: an S3 backend you create once by hand.
-  # backend "s3" {
-  #   bucket = "REPLACE_ME-tfstate"
-  #   key    = "techcombank-rag-chatbot/terraform.tfstate"
-  #   region = "us-east-1"
-  # }
+  backend "s3" {
+    bucket = "techcombank-rag-chatbot-tfstate-801651111983"
+    key    = "techcombank-rag-chatbot/terraform.tfstate"
+    region = "us-east-1"
+  }
 }
 
 provider "aws" {
