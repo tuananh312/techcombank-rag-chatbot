@@ -48,7 +48,12 @@ docker-compose.yml   Local run
 - Terraform >= 1.5 (only needed for manual/local deploys — CI installs it
   automatically)
 
-## 1. Generate the knowledge base (one-time, before first build)
+## 1. Generate the knowledge base (optional — only if regenerating the index)
+
+**Skip this section for a normal demo/review** — `app/data/index.faiss` and
+`app/data/chunks.json` are already committed to this repo. Only run this if
+you're changing the source PDF, the chunking logic, or the embedding model
+and need to rebuild the index from scratch.
 
 Runs entirely inside Docker — no local Python/FAISS install needed:
 
@@ -66,10 +71,15 @@ This writes `app/data/index.faiss` and `app/data/chunks.json` onto your host
 into the production Docker image, so the container needs no network access
 to the source PDF at runtime.
 
-## 2. Run locally (fastest way to demo — under 3 minutes from clone)
+## 2. Run locally
+
+The knowledge base (`app/data/index.faiss`, `app/data/chunks.json`) is
+already committed to this repo — **no need to run `ingest` for a demo or
+review**, only the API needs to be built and started:
 
 ```bash
-docker compose up --build api
+podman-compose build api
+podman-compose up -d api
 ```
 
 API is now live at `http://localhost:8000`. Open `frontend/index.html`
@@ -82,6 +92,16 @@ curl -X POST http://localhost:8000/chat \
   -H "Content-Type: application/json" \
   -d '{"message": "What was Techcombank'\''s net profit for the fiscal year?"}'
 ```
+
+**Measured timing** (build + start + first response, this machine, warm
+Podman layer cache): ~1 min 28 sec — under the 3-minute target. Note this
+reflects a machine with the base image layers already cached; a completely
+cold machine (first-ever build, no cached layers) will take longer, since
+most of that time is installing PyTorch/sentence-transformers/pdfplumber
+from scratch rather than the app itself starting — realistically another
+1-3 minutes depending on network speed. Only `ingest` needs AWS-independent
+network access to download the source PDF; it isn't part of this timing
+since it doesn't need to run for a normal demo/review.
 
 ## 3. Run unit tests
 
@@ -134,10 +154,16 @@ to AWS — much faster feedback loop than waiting on a GitHub Actions run.
 ## 5. Deploy to AWS
 
 ### One-time setup
-1. Create an IAM role that GitHub Actions can assume via OIDC (or swap to
-   access-key secrets if preferred), with permissions for ECR, Lambda, IAM,
-   and Bedrock.
-2. Add its ARN as a repo secret: `AWS_DEPLOY_ROLE_ARN`.
+1. Create a dedicated IAM user for CI (e.g. `github-actions-deploy`) with
+   permissions for ECR, Lambda, IAM (to create/configure the Lambda's
+   execution role), and Bedrock. (OIDC role-based auth was attempted first —
+   simpler, no long-lived credentials — but hit an `AssumeRoleWithWebIdentity`
+   authorization failure that persisted even with a verified-correct trust
+   policy and provider config, most likely an account-level SCP restriction.
+   Fell back to access keys to keep moving; worth revisiting with org-admin
+   access if this were going to production.)
+2. Generate an access key for that user and add two repo secrets:
+   `AWS_ACCESS_KEY_ID` and `AWS_SECRET_ACCESS_KEY`.
 3. (Optional but recommended) uncomment the S3 backend block in
    `infra/main.tf` and create that bucket, so Terraform state isn't lost
    between CI runs.
